@@ -1,6 +1,17 @@
 const Apify = require("apify");
 const normalizeUrl = require("normalize-url");
 const rp = require("request-promise");
+const pMap = require("p-map");
+const R = require("ramda");
+
+const normalize = url => {
+  console.log(`url: ${url}`);
+  return normalizeUrl(url, {
+    removeQueryParameters: ["ref", /^utm_\w+/i],
+    removeDirectoryIndex: [/^default\.[a-z]+$/, /^index\.[a-z]+$/],
+    stripHash: true
+  });
+};
 
 Apify.main(async () => {
   const input = await Apify.getInput();
@@ -13,42 +24,80 @@ Apify.main(async () => {
   const { crawlerOptionsOverrides } = input;
   const namespace = input.namespace || "default";
 
+  const prepareUrls = async source => {
+    const { userData } = source;
+
+    if (source.requestsFromUrl) {
+      const urlListfile = await rp(source.requestsFromUrl);
+
+      return urlListfile
+        .split("\n")
+        .filter(url => !!url)
+        .map(url => ({
+          userData: { ...userData, origionalUrl: url },
+          url: normalize(url)
+        }));
+    }
+
+    if (source.url) {
+      return {
+        ...source,
+        userData: { ...userData, origionalUrl: source.url },
+        url: normalize(source.url)
+      };
+    }
+  };
+
+  sourceUrls = await pMap(input.sources, prepareUrls, { concurrency: 5 });
+
   const requestList = new Apify.RequestList({
-    sources: input.sources,
+    sources: R.flatten(sourceUrls),
     persistStateKey: `redirect-state-${input.namespace}`,
     persistSourcesKey: `redirect-state-${input.namespace}`
   });
+
   await requestList.initialize();
 
-  const basicCrawler = new Apify.BasicCrawler({
+  const basicCrawler = new Apify.PuppeteerCrawler({
+    stealth: true,
     ...crawlerOptionsOverrides,
     requestList,
-    handleRequestFunction: async ({ request }) => {
-      const origionalUrl = request.url;
-      const normalizedUrl = normalizeUrl(origionalUrl);
-
-      const loadedUrl = (await rp({
-        url: request.url,
-        followRedirect: true,
-        followAllRedirects: true,
-        resolveWithFullResponse: true
-      }))["request"]["uri"]["href"];
+    gotoFunction: async ({ page, request }) => {
+      request.userData.lable = "modified";
+      return page.goto(request.url);
+    },
+    handlePageFunction: async ({ request, page, response }) => {
+      const { origionalUrl } = request.userData;
+      const normalizedOrigionalUrl = normalize(origionalUrl);
+      const loadedUrl = await page.url();
+      const normalizedloadedUrl = normalize(loadedUrl);
+      const title = await page.title();
+      const ip = (await response.remoteAddress()).ip;
+      const statusCode = await response.status();
+      const statusText = await response.statusText();
+      const isOk = await response.ok();
 
       await Apify.pushData({
         origionalUrl,
-        normalizedUrl,
-        loadedUrl
+        normalizedOrigionalUrl,
+        loadedUrl,
+        normalizedloadedUrl,
+        title,
+        ip,
+        statusCode,
+        statusText,
+        isOk
       });
     },
 
     handleFailedRequestFunction: async ({ request }) => {
-      const origionalUrl = request.url;
-      const normalizedUrl = normalizeUrl(origionalUrl);
+      const { origionalUrl } = request.userData;
+      const normalizedOrigionalUrl = request.url;
       const { errorMessages } = request.errorMessages;
 
       await Apify.pushData({
         origionalUrl,
-        normalizedUrl,
+        normalizedOrigionalUrl,
         "#errorMessage": errorMessages,
         "#isFailed": true
       });
