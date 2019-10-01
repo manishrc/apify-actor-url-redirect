@@ -21,7 +21,7 @@ For a list of input URLs, get a list of final URLs that are loaded after redirec
   <tr>
     <td>sources</td>
     <td>Array</td>
-    <td>(Option 1) Array of URLs to resolve</td>
+    <td>(Option 1) Array of URLs to resolve in the format: `{"url": "https://manishrc.com"}`</td>
   </tr>
   <tr>
     <td>sources.requestsFromUrl</td>
