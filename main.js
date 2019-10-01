@@ -59,13 +59,26 @@ Apify.main(async () => {
 
   const basicCrawler = new Apify.PuppeteerCrawler({
     stealth: true,
+    handlePageTimeoutSecs: 10,
     ...crawlerOptionsOverrides,
     requestList,
     gotoFunction: async ({ page, request }) => {
       request.userData.lable = "modified";
+      await Apify.utils.puppeteer.blockRequests(page);
       return page.goto(request.url);
     },
     handlePageFunction: async ({ request, page, response }) => {
+      await page.waitFor(2000);
+
+      let metarefresh;
+      try {
+        const metarefresh = await page.$eval(
+          "meta[http-equiv=refresh]",
+          meta =>
+            ((meta.getAttribute("content") || "").match(/url=(.*)/) || [])[1]
+        );
+      } catch (e) {}
+
       const { origionalUrl } = request.userData;
       const normalizedOrigionalUrl = normalize(origionalUrl);
       const loadedUrl = await page.url();
@@ -85,7 +98,8 @@ Apify.main(async () => {
         ip,
         statusCode,
         statusText,
-        isOk
+        isOk,
+        metarefresh
       });
     },
 
