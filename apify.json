@@ -3,5 +3,5 @@
 	"version": "1.0",
 	"buildTag": "latest",
 	"env": null,
-	"template": "basic_crawler"
+	"template": "puppeteer_crawler"
 }
