@@ -5,7 +5,6 @@ const pMap = require("p-map");
 const R = require("ramda");
 
 const normalize = url => {
-  console.log(`url: ${url}`);
   return normalizeUrl(url, {
     removeQueryParameters: ["ref", /^utm_\w+/i],
     removeDirectoryIndex: [/^default\.[a-z]+$/, /^index\.[a-z]+$/],
