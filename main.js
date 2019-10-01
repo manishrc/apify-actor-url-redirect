@@ -12,6 +12,13 @@ const normalize = url => {
   });
 };
 
+const pTimeout = duration =>
+  new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve(null);
+    }, duration);
+  });
+
 Apify.main(async () => {
   const input = await Apify.getInput();
   console.log("Input:");
@@ -71,12 +78,16 @@ Apify.main(async () => {
       await page.waitFor(2000);
 
       let metarefresh;
+
       try {
-        const metarefresh = await page.$eval(
-          "meta[http-equiv=refresh]",
-          meta =>
-            ((meta.getAttribute("content") || "").match(/url=(.*)/) || [])[1]
-        );
+        metarefresh = await Promise.race([
+          page.$eval(
+            "meta[http-equiv=refresh]",
+            meta =>
+              ((meta.getAttribute("content") || "").match(/url=(.*)/) || [])[1]
+          ),
+          pTimeout(500)
+        ]);
       } catch (e) {}
 
       const { origionalUrl } = request.userData;
