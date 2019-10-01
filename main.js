@@ -90,15 +90,19 @@ Apify.main(async () => {
         ]);
       } catch (e) {}
 
+      let ip, statusCode, statusText, isOk;
+      try {
+        ip = (await response.remoteAddress()).ip;
+        statusCode = await response.status();
+        statusText = await response.statusText();
+        isOk = await response.ok();
+      } catch (e) {}
+
       const { origionalUrl } = request.userData;
       const normalizedOrigionalUrl = normalize(origionalUrl);
       const loadedUrl = await page.url();
       const normalizedloadedUrl = normalize(loadedUrl);
       const title = await page.title();
-      const ip = (await response.remoteAddress()).ip;
-      const statusCode = await response.status();
-      const statusText = await response.statusText();
-      const isOk = await response.ok();
 
       await Apify.pushData({
         origionalUrl,
