@@ -41,7 +41,7 @@ Apify.main(async () => {
     handleFailedRequestFunction: async ({ request }) => {
       const origionalUrl = request.url;
       const normalizedUrl = normalizeUrl(origionalUrl);
-      const errorMessage = (request.errorMessages[0] || "").split("\\n")[0];
+      const errorMessage = (request.errorMessages[0] || "").split("\n")[0];
 
       await Apify.pushData({
         origionalUrl,
