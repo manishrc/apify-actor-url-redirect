@@ -1,0 +1,7 @@
+{
+	"name": "apify-actor-url-redirect",
+	"version": "1.0",
+	"buildTag": "latest",
+	"env": null,
+	"template": "basic_crawler"
+}
