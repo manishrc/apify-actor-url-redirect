@@ -11,11 +11,14 @@ Apify.main(async () => {
     throw new Error('Input must be a JSON object with the "sources" field!');
 
   const { crawlerOptionsOverrides } = input;
+  const namespace = input.namespace || "default";
 
-  const requestList = await Apify.openRequestList(
-    `redirect-request-list-${input.namespace || "default"}`,
-    input.sources
-  );
+  const requestList = new Apify.RequestList({
+    sources: input.sources,
+    persistStateKey: `redirect-state-${input.namespace}`,
+    persistSourcesKey: `redirect-state-${input.namespace}`
+  });
+  await requestList.initialize();
 
   const basicCrawler = new Apify.BasicCrawler({
     ...crawlerOptionsOverrides,
@@ -41,12 +44,12 @@ Apify.main(async () => {
     handleFailedRequestFunction: async ({ request }) => {
       const origionalUrl = request.url;
       const normalizedUrl = normalizeUrl(origionalUrl);
-      const errorMessage = (request.errorMessages[0] || "").split("\n")[0];
+      const { errorMessages } = request.errorMessages;
 
       await Apify.pushData({
         origionalUrl,
         normalizedUrl,
-        errorMessage,
+        "#errorMessage": errorMessages,
         "#isFailed": true
       });
     }
