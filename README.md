@@ -43,7 +43,7 @@ For a list of input URLs, get a list of final URLs that are loaded after redirec
   "origionalUrl": "http://google.com/",
   "normalizedUrl": "http://www.google.com",
   "loadedUrl": "https://www.google.com",
-  "errorMessage": "<Short error message>",
+  "#errorMessage": "[<errors>]",
   "#isFailed": "<true/false>"
 }
 ```
