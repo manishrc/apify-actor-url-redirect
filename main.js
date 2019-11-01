@@ -5,11 +5,16 @@ const pMap = require("p-map");
 const R = require("ramda");
 
 const normalize = url => {
-  return normalizeUrl(url, {
-    removeQueryParameters: ["ref", /^utm_\w+/i],
-    removeDirectoryIndex: [/^default\.[a-z]+$/, /^index\.[a-z]+$/],
-    stripHash: true
-  });
+  try {
+    return normalizeUrl(url, {
+      removeQueryParameters: ["ref", /^utm_\w+/i],
+      removeDirectoryIndex: [/^default\.[a-z]+$/, /^index\.[a-z]+$/],
+      stripHash: true
+    });
+  } catch (e) {
+    console.log(e);
+    return;
+  }
 };
 
 const pTimeout = duration =>
@@ -42,7 +47,12 @@ Apify.main(async () => {
         .map(url => ({
           userData: { ...userData, origionalUrl: url },
           url: normalize(url)
-        }));
+        }))
+        .map(x => {
+          console.log(x);
+          return x;
+        })
+        .filter(obj => obj.url);
     }
 
     if (source.url) {
