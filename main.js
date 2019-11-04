@@ -81,7 +81,7 @@ Apify.main(async () => {
     requestList,
     gotoFunction: async ({ page, request }) => {
       request.userData.lable = "modified";
-      await Apify.utils.puppeteer.blockRequests(page);
+      // await Apify.utils.puppeteer.blockRequests(page);
       return page.goto(request.url);
     },
     handlePageFunction: async ({ request, page, response }) => {
