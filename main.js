@@ -1,146 +1,109 @@
 const Apify = require("apify");
-const normalizeUrl = require("normalize-url");
-const rp = require("request-promise");
-const pMap = require("p-map");
-const R = require("ramda");
+const normalize = require("normalize-url");
 
-const normalize = url => {
+const normalizeUrl = (url) => {
   try {
-    return normalizeUrl(url, {
+    return normalize(url, {
       removeQueryParameters: ["ref", /^utm_\w+/i],
-      removeDirectoryIndex: [/^default\.[a-z]+$/, /^index\.[a-z]+$/],
-      stripHash: true
+      removeDirectoryIndex: [/^default\.[a-z]+$/i, /^index\.[a-z]+$/i],
+      stripHash: true,
     });
   } catch (e) {
-    console.log(e);
-    return;
+    console.error(e);
+    return null;
   }
 };
 
-const pTimeout = duration =>
+const pTimeout = (duration) =>
   new Promise((resolve, reject) => {
     setTimeout(() => {
       resolve(null);
     }, duration);
   });
 
+const urlToRequest = (url) => ({
+  url: normalizeUrl(url),
+  userData: { origionalUrl: url },
+  uniqueKey: url,
+});
+
+const prepareRequestListFromText = (text) => text.split("\n").map(urlToRequest);
+
 Apify.main(async () => {
   const input = await Apify.getInput();
-  console.log("Input:");
-  console.dir(input);
-
-  if (!input || !input.sources)
-    throw new Error('Input must be a JSON object with the "sources" field!');
-
   const { crawlerOptionsOverrides } = input;
-  const namespace = input.namespace || "default";
 
-  const prepareUrls = async source => {
-    const { userData } = source;
-
-    if (source.requestsFromUrl) {
-      const urlListfile = await rp(source.requestsFromUrl);
-
-      return urlListfile
-        .split("\n")
-        .filter(url => !!url)
-        .map(url => ({
-          userData: { ...userData, origionalUrl: url },
-          url: normalize(url)
-        }))
-        .map(x => {
-          console.log(x);
-          return x;
-        })
-        .filter(obj => obj.url);
-    }
-
-    if (source.url) {
-      return {
-        ...source,
-        userData: { ...userData, origionalUrl: source.url },
-        url: normalize(source.url)
-      };
-    }
-  };
-
-  sourceUrls = await pMap(input.sources, prepareUrls, { concurrency: 5 });
+  if (!input.urlList && !typeof input.urlList === "string")
+    throw new Error("Input must be string with url in each line.");
 
   const requestList = new Apify.RequestList({
-    sources: R.flatten(sourceUrls),
-    persistStateKey: `redirect-state-${input.namespace}`,
-    persistSourcesKey: `redirect-state-${input.namespace}`
+    sources: prepareRequestListFromText(input.urlList),
+    persistRequestsKey: `${process.env.APIFY_ACTOR_RUN_ID}-request-key`,
+    persistStateKey: `${process.env.APIFY_ACTOR_RUN_ID}-state-key`,
+    keepDuplicateUrls: true,
   });
-
   await requestList.initialize();
 
-  const basicCrawler = new Apify.PuppeteerCrawler({
-    stealth: true,
+  const handlePageFunction = async ({ request, page, response }) => {
+    let metarefresh, statusCode, statusText, isOk;
+    await page.waitForTimeout(2000);
+
+    // Get MetaRefresh URL
+    try {
+      metarefresh = await Promise.race([
+        page.$eval(
+          "meta[http-equiv=refresh]",
+          (meta) =>
+            ((meta.getAttribute("content") || "").match(/url=(.*)/) || [])[1]
+        ),
+        pTimeout(500),
+      ]);
+    } catch (e) {}
+
+    // Get IP, StatusCode, StatusText, Is "OK"?
+    try {
+      ip = (await response.remoteAddress()).ip;
+      statusCode = await response.status();
+      statusText = await response.statusText();
+      isOk = await response.ok();
+    } catch (e) {}
+
+    const loadedUrl = await page.url();
+    const loadedUrlNormalized = normalizeUrl(loadedUrl);
+
+    const result = {
+      origionalUrl: request.userData.origionalUrl,
+      loadedUrl,
+      loadedUrlNormalized,
+      isOk,
+      metarefresh,
+      statusCode,
+      statusText,
+    };
+
+    await Apify.pushData(result);
+  };
+
+  const handleFailedRequestFunction = async ({ request }) => {
+    const { origionalUrl } = request.userData;
+    const attemptedUrl = request.url;
+    const { errorMessages } = request.errorMessages;
+
+    await Apify.pushData({
+      origionalUrl,
+      attemptedUrl,
+      "#errorMessage": errorMessages,
+      "#isFailed": true,
+    });
+  };
+
+  const crawler = new Apify.PuppeteerCrawler({
     handlePageTimeoutSecs: 10,
     ...crawlerOptionsOverrides,
+    handlePageFunction,
+    handleFailedRequestFunction,
     requestList,
-    gotoFunction: async ({ page, request }) => {
-      request.userData.lable = "modified";
-      // await Apify.utils.puppeteer.blockRequests(page);
-      return page.goto(request.url);
-    },
-    handlePageFunction: async ({ request, page, response }) => {
-      await page.waitFor(2000);
-
-      let metarefresh;
-
-      try {
-        metarefresh = await Promise.race([
-          page.$eval(
-            "meta[http-equiv=refresh]",
-            meta =>
-              ((meta.getAttribute("content") || "").match(/url=(.*)/) || [])[1]
-          ),
-          pTimeout(500)
-        ]);
-      } catch (e) {}
-
-      let ip, statusCode, statusText, isOk;
-      try {
-        ip = (await response.remoteAddress()).ip;
-        statusCode = await response.status();
-        statusText = await response.statusText();
-        isOk = await response.ok();
-      } catch (e) {}
-
-      const { origionalUrl } = request.userData;
-      const normalizedOrigionalUrl = normalize(origionalUrl);
-      const loadedUrl = await page.url();
-      const normalizedloadedUrl = normalize(loadedUrl);
-      const title = await page.title();
-
-      await Apify.pushData({
-        origionalUrl,
-        normalizedOrigionalUrl,
-        loadedUrl,
-        normalizedloadedUrl,
-        title,
-        ip,
-        statusCode,
-        statusText,
-        isOk,
-        metarefresh
-      });
-    },
-
-    handleFailedRequestFunction: async ({ request }) => {
-      const { origionalUrl } = request.userData;
-      const normalizedOrigionalUrl = request.url;
-      const { errorMessages } = request.errorMessages;
-
-      await Apify.pushData({
-        origionalUrl,
-        normalizedOrigionalUrl,
-        "#errorMessage": errorMessages,
-        "#isFailed": true
-      });
-    }
   });
 
-  await basicCrawler.run();
+  await crawler.run();
 });

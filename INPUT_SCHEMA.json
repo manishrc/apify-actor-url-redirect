@@ -4,17 +4,12 @@
   "type": "object",
   "schemaVersion": 1,
   "properties": {
-    "sources": {
-      "title": "Start URLs",
-      "type": "array",
-      "description": "URLs to resolve",
-      "prefill": [
-        { "url": "http://manishrc.com" },
-        { "url": "http://www.manishrc.com/" },
-        { "url": "http://www.manishrc.com/does-not-exist" }
-      ],
-      "editor": "requestListSources"
+    "urlList": {
+      "title": "URLs",
+      "type": "string",
+      "description": "Enter 1 on each line",
+      "editor": "textarea"
     }
   },
-  "required": ["sources"]
+  "required": []
 }
