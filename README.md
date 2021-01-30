@@ -14,17 +14,12 @@ For a list of input URLs, get a list of final URLs that are loaded after redirec
 </thead>
 <tbody>
   <tr>
-    <td>namespace</td>
+    <td>urlList</td>
     <td>String</td>
-    <td>Uses this namespace to persist requests</td>
+    <td>(Option 1) List of URLs. One per line.`</td>
   </tr>
   <tr>
-    <td>sources</td>
-    <td>Array</td>
-    <td>(Option 1) Array of URLs to resolve in the format: `{"url": "https://manishrc.com"}`</td>
-  </tr>
-  <tr>
-    <td>sources.requestsFromUrl</td>
+    <td>sources.requestsFromUrl (soon)</td>
     <td>String</td>
     <td>(Option 2) URL to a file with the list of URLs</td>
   </tr>
@@ -41,8 +36,12 @@ For a list of input URLs, get a list of final URLs that are loaded after redirec
 ```json
 {
   "origionalUrl": "http://google.com/",
-  "normalizedUrl": "http://www.google.com",
-  "loadedUrl": "https://www.google.com",
+  "attemptedUrl": "http://www.google.com",
+  "loadedUrl": "https://www.google.com/",
+  "loadedUrlNormalized": "https://www.google.com",
+  "isOk": true,
+  "statusCode": 200,
+  "statusText": "",
   "#errorMessage": "[<errors>]",
   "#isFailed": "<true/false>"
 }
