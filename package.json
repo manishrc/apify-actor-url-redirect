@@ -4,7 +4,7 @@
   "description": "Actor that takes a list of URLs and provides loaded URLs",
   "dependencies": {
     "apify": "^1.0.0",
-    "normalize-url": "^4.5.0",
+    "normalize-url": "^4.5.1",
     "puppeteer": "^5.5.0"
   },
   "devDependencies": {},
