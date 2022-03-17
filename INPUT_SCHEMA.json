@@ -8,7 +8,8 @@
       "title": "URLs",
       "type": "string",
       "description": "Enter 1 on each line",
-      "editor": "textarea"
+      "editor": "textarea", 
+      "prefill": ""https://apify.com/ideas/bing-scraper"
     }
   },
   "required": []
