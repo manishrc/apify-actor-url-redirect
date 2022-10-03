@@ -9,19 +9,23 @@ let requestUrls;
 Actor.main(async () => {
   // Get Input & Validate
   const input = await Actor.getInput();
+  const inputText = input.urlList;
+  const remoteTextFile = (input.sources || {}).requestsFromUrl;
 
-  if (input && (!(input.sources || {}).requestsFromUrl || !input.urlList))
+  // console.log({ inputText, remoteTextFile });
+
+  if (!(inputText || remoteTextFile))
     throw new Error(
       "Input must have sources. Please refer docs for this actor."
     );
 
   // Get urlList content
-  if (input.urlList) {
-    requestUrls = prepareRequestListFromText(input.urlList);
+  if (inputText) {
+    requestUrls = prepareRequestListFromText(inputText);
   }
 
-  if (input.sources.requestsFromUrl) {
-    const res = await fetch(input.sources.requestsFromUrl);
+  if (remoteTextFile) {
+    const res = await fetch(remoteTextFile);
     const urlList = await res.text();
     requestUrls = prepareRequestListFromText(urlList);
   }
