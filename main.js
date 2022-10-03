@@ -1,109 +1,107 @@
-const Apify = require("apify");
-const normalize = require("normalize-url");
+import { Actor } from "apify";
+import { Dataset, PlaywrightCrawler, RequestList } from "crawlee";
+import fetch from "node-fetch";
+import normalizeUrl from "./lib/normalize-url.js";
+import pTimeout from "./lib/p-timeout.js";
+import prepareRequestListFromText from "./lib/prepare-request-list.js";
 
-const normalizeUrl = (url) => {
+await Actor.init();
+
+// Get Input & Validate
+const input = await Actor.getInput();
+if (!input) throw new Error("Input must provided.");
+if (!input?.urlList && !typeof input?.urlList === "string")
+  throw new Error("Input must be string with url in each line.");
+
+// Get urlList content
+const res = await fetch(input.urlList);
+const urlList = await res.text();
+
+if (!urlList == "string" && urlList.length <= 0) {
+  throw new Error("Input must be string with url in each line.");
+}
+
+// Get actor config
+const { crawlerOptionsOverrides } = input;
+
+const requestList = await RequestList.open(
+  `${process.env.APIFY_ACTOR_RUN_ID}-list`,
+  prepareRequestListFromText(urlList)
+);
+
+async function requestHandler({ request, page }) {
+  let metarefresh, statusCode, statusText, isOk, ip;
+  await page.waitForTimeout(2000);
+  const response = await page.waitForResponse((url) => true);
+
+  const loadedUrl = await page.url();
+  const loadedUrlNormalized = normalizeUrl(loadedUrl);
+  const origionalUrl = request.userData.origionalUrl;
+
+  // Get MetaRefresh URL
   try {
-    return normalize(url, {
-      removeQueryParameters: ["ref", /^utm_\w+/i],
-      removeDirectoryIndex: [/^default\.[a-z]+$/i, /^index\.[a-z]+$/i],
-      stripHash: true,
-    });
+    metarefresh = await Promise.race([
+      page.$eval(
+        "meta[http-equiv=refresh]",
+        (meta) =>
+          ((meta.getAttribute("content") || "").match(/url=(.*)/) || [])[1]
+      ),
+      pTimeout(500),
+    ]);
+  } catch (e) {}
+
+  // Get IP, StatusCode, StatusText, Is "OK"?
+  isOk = await response.ok();
+  statusText = await response.statusText();
+  statusCode = await response.status();
+
+  try {
+    const serverAddr = await response.serverAddr();
+    ip = serverAddr.ipAddress;
   } catch (e) {
-    console.error(e);
-    return null;
+    ip = e.name;
   }
-};
 
-const pTimeout = (duration) =>
-  new Promise((resolve, reject) => {
-    setTimeout(() => {
-      resolve(null);
-    }, duration);
-  });
-
-const urlToRequest = (url) => ({
-  url: normalizeUrl(url),
-  userData: { origionalUrl: url },
-  uniqueKey: url,
-});
-
-const prepareRequestListFromText = (text) => text.split("\n").map(urlToRequest);
-
-Apify.main(async () => {
-  const input = await Apify.getInput();
-  const { crawlerOptionsOverrides } = input;
-
-  if (!input.urlList && !typeof input.urlList === "string")
-    throw new Error("Input must be string with url in each line.");
-
-  const requestList = new Apify.RequestList({
-    sources: prepareRequestListFromText(input.urlList),
-    persistRequestsKey: `${process.env.APIFY_ACTOR_RUN_ID}-request-key`,
-    persistStateKey: `${process.env.APIFY_ACTOR_RUN_ID}-state-key`,
-    keepDuplicateUrls: true,
-  });
-  await requestList.initialize();
-
-  const handlePageFunction = async ({ request, page, response }) => {
-    let metarefresh, statusCode, statusText, isOk;
-    await page.waitForTimeout(2000);
-
-    // Get MetaRefresh URL
-    try {
-      metarefresh = await Promise.race([
-        page.$eval(
-          "meta[http-equiv=refresh]",
-          (meta) =>
-            ((meta.getAttribute("content") || "").match(/url=(.*)/) || [])[1]
-        ),
-        pTimeout(500),
-      ]);
-    } catch (e) {}
-
-    // Get IP, StatusCode, StatusText, Is "OK"?
-    try {
-      ip = (await response.remoteAddress()).ip;
-      statusCode = await response.status();
-      statusText = await response.statusText();
-      isOk = await response.ok();
-    } catch (e) {}
-
-    const loadedUrl = await page.url();
-    const loadedUrlNormalized = normalizeUrl(loadedUrl);
-
-    const result = {
-      origionalUrl: request.userData.origionalUrl,
-      loadedUrl,
-      loadedUrlNormalized,
-      isOk,
-      metarefresh,
-      statusCode,
-      statusText,
-    };
-
-    await Apify.pushData(result);
+  const result = {
+    origionalUrl,
+    loadedUrl,
+    loadedUrlNormalized,
+    isOk,
+    metarefresh,
+    statusCode,
+    statusText,
+    ip,
   };
 
-  const handleFailedRequestFunction = async ({ request }) => {
-    const { origionalUrl } = request.userData;
-    const attemptedUrl = request.url;
-    const { errorMessages } = request.errorMessages;
+  console.log("✅ requestHandler.request.userData", origionalUrl);
+  console.log("✅ result", result);
+  await Dataset.pushData(result);
+}
 
-    await Apify.pushData({
-      origionalUrl,
-      attemptedUrl,
-      "#errorMessage": errorMessages,
-      "#isFailed": true,
-    });
+async function failedRequestHandler({ request }) {
+  console.log("request.useData", request.useData());
+  const { origionalUrl } = "request?.useData";
+  const attemptedUrl = request.url;
+  const { errorMessages } = request.errorMessages;
+
+  const result = {
+    origionalUrl,
+    attemptedUrl,
+    "#errorMessage": errorMessages,
+    "#isFailed": true,
   };
 
-  const crawler = new Apify.PuppeteerCrawler({
-    handlePageTimeoutSecs: 10,
-    ...crawlerOptionsOverrides,
-    handlePageFunction,
-    handleFailedRequestFunction,
-    requestList,
-  });
+  console.log("RESULT");
+  console.log(result);
+  await Dataset.pushData(result);
+}
 
-  await crawler.run();
+const crawler = new PlaywrightCrawler({
+  requestList,
+  requestHandler,
+  failedRequestHandler,
+  requestHandlerTimeoutSecs: 10,
+  ...crawlerOptionsOverrides,
 });
+
+await crawler.run();

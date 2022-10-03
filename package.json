@@ -3,9 +3,11 @@
   "version": "2.0.0",
   "description": "Actor that takes a list of URLs and provides loaded URLs",
   "dependencies": {
-    "apify": "^1.0.0",
-    "normalize-url": "^4.5.0",
-    "puppeteer": "^5.5.0"
+    "apify": "^3.0.2",
+    "crawlee": "^3.0.4",
+    "normalize-url": "^7.2.0",
+    "playwright": "^1.26.1",
+    "puppeteer": "^18.0.5"
   },
   "devDependencies": {},
   "scripts": {
@@ -13,5 +15,6 @@
     "test": "echo \"Error: oops, the actor has no tests yet, sad!\" && exit 1"
   },
   "author": "@manishrc",
-  "license": "MIT"
+  "license": "MIT",
+  "type": "module"
 }
