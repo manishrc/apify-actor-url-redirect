@@ -10,17 +10,17 @@ Actor.main(async () => {
   // Get Input & Validate
   const input = await Actor.getInput();
 
-  if (!input?.sources?.requestsFromUrl || !input?.urlList)
+  if (input && (!(input.sources || {}).requestsFromUrl || !input.urlList))
     throw new Error(
       "Input must have sources. Please refer docs for this actor."
     );
 
   // Get urlList content
-  if (input?.urlList) {
+  if (input.urlList) {
     requestUrls = prepareRequestListFromText(input.urlList);
   }
 
-  if (input?.sources?.requestsFromUrl) {
+  if (input.sources.requestsFromUrl) {
     const res = await fetch(input.sources.requestsFromUrl);
     const urlList = await res.text();
     requestUrls = prepareRequestListFromText(urlList);
@@ -78,14 +78,12 @@ Actor.main(async () => {
       ip,
     };
 
-    console.log("✅ requestHandler.request.userData", origionalUrl);
-    console.log("✅ result", result);
     await Dataset.pushData(result);
   }
 
   async function failedRequestHandler({ request }) {
     console.log("request.useData", request.useData());
-    const { origionalUrl } = "request?.useData";
+    const origionalUrl = request.userData.origionalUrl;
     const attemptedUrl = request.url;
     const { errorMessages } = request.errorMessages;
 

@@ -1,6 +1,6 @@
 {
   "name": "apify-actor-url-redirect",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Actor that takes a list of URLs and provides loaded URLs",
   "dependencies": {
     "apify": "^3.0.2",
