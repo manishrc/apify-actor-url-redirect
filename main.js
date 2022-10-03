@@ -38,10 +38,10 @@ Actor.main(async () => {
     requestUrls
   );
 
-  async function requestHandler({ request, page }) {
+  async function requestHandler({ request, page, response }) {
     let metarefresh, statusCode, statusText, isOk, ip;
+
     await page.waitForTimeout(2000);
-    const response = await page.waitForResponse((url) => true);
 
     const loadedUrl = await page.url();
     const loadedUrlNormalized = normalizeUrl(loadedUrl);
@@ -82,11 +82,10 @@ Actor.main(async () => {
       ip,
     };
 
-    await Dataset.pushData(result);
+    await Actor.pushData(result);
   }
 
   async function failedRequestHandler({ request }) {
-    console.log("request.useData", request.useData());
     const origionalUrl = request.userData.origionalUrl;
     const attemptedUrl = request.url;
     const { errorMessages } = request.errorMessages;
@@ -100,7 +99,7 @@ Actor.main(async () => {
 
     console.log("RESULT");
     console.log(result);
-    await Dataset.pushData(result);
+    await Actor.pushData(result);
   }
 
   const crawler = new PlaywrightCrawler({
