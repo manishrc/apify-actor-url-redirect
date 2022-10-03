@@ -5,10 +5,10 @@
   "dependencies": {
     "apify": "^3.0.2",
     "crawlee": "^3.0.4",
+    "node-fetch": "^3.2.10",
     "normalize-url": "^7.2.0",
     "playwright": "^1.26.1"
   },
-  "devDependencies": {},
   "scripts": {
     "start": "node main.js",
     "test": "echo \"Error: oops, the actor has no tests yet, sad!\" && exit 1"
