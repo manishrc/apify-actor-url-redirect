@@ -4,21 +4,24 @@ import fetch from "node-fetch";
 import normalizeUrl from "./lib/normalize-url.js";
 import pTimeout from "./lib/p-timeout.js";
 import prepareRequestListFromText from "./lib/prepare-request-list.js";
-
+let requestUrls;
 await Actor.init();
 
 // Get Input & Validate
 const input = await Actor.getInput();
-if (!input) throw new Error("Input must provided.");
-if (!input?.urlList && !typeof input?.urlList === "string")
-  throw new Error("Input must be string with url in each line.");
+
+if (!input?.sources?.requestsFromUrl || !input?.urlList)
+  throw new Error("Input must have sources. Please refer docs for this actor.");
 
 // Get urlList content
-const res = await fetch(input.urlList);
-const urlList = await res.text();
+if (input?.urlList) {
+  requestUrls = prepareRequestListFromText(input.urlList);
+}
 
-if (!urlList == "string" && urlList.length <= 0) {
-  throw new Error("Input must be string with url in each line.");
+if (input?.sources?.requestsFromUrl) {
+  const res = await fetch(input.sources.requestsFromUrl);
+  const urlList = await res.text();
+  requestUrls = prepareRequestListFromText(urlList);
 }
 
 // Get actor config
@@ -26,7 +29,7 @@ const { crawlerOptionsOverrides } = input;
 
 const requestList = await RequestList.open(
   `${process.env.APIFY_ACTOR_RUN_ID}-list`,
-  prepareRequestListFromText(urlList)
+  requestUrls
 );
 
 async function requestHandler({ request, page }) {

@@ -14,12 +14,12 @@ For a list of input URLs, get a list of final URLs that are loaded after redirec
 </thead>
 <tbody>
   <tr>
-    <td>urlList</td>
+    <td>`urlList`</td>
     <td>String</td>
     <td>(Option 1) List of URLs. One per line.`</td>
   </tr>
   <tr>
-    <td>sources.requestsFromUrl (soon)</td>
+    <td>`sources.requestsFromUrl`</td>
     <td>String</td>
     <td>(Option 2) URL to a file with the list of URLs</td>
   </tr>
